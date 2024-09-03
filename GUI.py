@@ -9,7 +9,7 @@ from ldm_hacked import *
 import random
 
 
-# 假设你有一个 generate_image(prompt, a_prompt, n_prompt) 函数来生成图像
+# generate_image(prompt, a_prompt, n_prompt) 函数来生成图像
 def generate_image(prompt_user, a_prompt_user, n_prompt_user,ddim_steps_user,name_img):
     # 用Stable Diffusion的代码来生成图像
     # ----------------------- #
@@ -252,19 +252,15 @@ class StableDiffusionApp(QWidget):
 
     def display_image(self, image):
         try:
-            # Convert PIL image to RGB format
             pil_image = Image.fromarray(image)
             rgb_image = pil_image.convert('RGB')
 
-            # Convert RGB image to numpy array
             image_array = np.array(rgb_image)
 
-            # Convert numpy array to QImage
             height, width, channel = image_array.shape
             bytes_per_line = 3 * width
             qimage = QImage(image_array.data, width, height, bytes_per_line, QImage.Format_RGB888)
 
-            # Convert QImage to QPixmap and display
             pixmap = QPixmap.fromImage(qimage)
             self.image_label.setPixmap(pixmap)
             self.image_label.setScaledContents(True)
