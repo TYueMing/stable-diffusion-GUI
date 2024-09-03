@@ -1,0 +1,70 @@
+model:
+  base_learning_rate: 1.0e-04              # 训练时候的基础学习率
+  target: ldm.models.diffusion.ddpm.LatentDiffusion    # target指定模型的目标类
+  params:
+    linear_start: 0.00085    # 这些参数用于设置扩散过程的开始和结束噪声的幅度。扩散模型通常会在逐渐增加噪声的过程中学习去噪的过程。
+    linear_end: 0.0120
+    num_timesteps_cond: 1   # 设定在条件生成过程中使用的时间步数。通常，这个数字较小，因为条件输入已经提供了大部分信息。
+    log_every_t: 200   # 指定每隔多少个时间步记录日志，便于监控训练进度。
+    timesteps: 1000   # 扩散过程中的时间步数
+    first_stage_key: "jpg"
+    cond_stage_key: "txt"
+    image_size: 64   # image_size: 生成图像的大小
+    channels: 4
+    cond_stage_trainable: false   # Note: different from the one we trained before 表示条件阶段（如文本编码器）是否是可训练的。这里设置为 false，意味着不训练该部分（可能使用预训练的编码器，如 CLIP）。
+    conditioning_key: crossattn    # 决定如何将条件（如文本）输入到模型中。crossattn 表示使用交叉注意力机制。
+    monitor: val/loss_simple_ema   # 指定用于监控训练进度的度量标准，这里是 val/loss_simple_ema。
+    scale_factor: 0.18215    # 图像大小的缩放因子。通常用于潜在空间中的操作。
+    use_ema: False   # 指定是否使用指数移动平均（EMA）来平滑训练模型的参数。
+
+    scheduler_config: # 10000 warmup steps  用于定义学习率调度器的配置，这里使用 LambdaLinearScheduler。
+      target: ldm.lr_scheduler.LambdaLinearScheduler
+      params:
+        warm_up_steps: [ 10000 ]   # warm_up_steps: 学习率预热步数。模型训练初期，学习率通常从很小的值开始，并逐渐升高。
+        cycle_lengths: [ 10000000000000 ] # incredibly large number to prevent corner cases
+        f_start: [ 1.e-6 ]
+        f_max: [ 1. ]
+        f_min: [ 1. ]
+
+    unet_config:    # unet_config: 用于设置 UNet 模块的配置，这是 Stable Diffusion 模型的核心部分，用于扩散过程的正向和反向步骤。
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 32 # unused
+        in_channels: 4
+        out_channels: 4
+        model_channels: 320
+        attention_resolutions: [ 4, 2, 1 ]  # 指定在哪些分辨率下应用注意力机制。这里表示在 4x4、2x2 和 1x1 的分辨率上使用注意力。
+        num_res_blocks: 2
+        channel_mult: [ 1, 2, 4, 4 ]
+        num_heads: 8
+        use_spatial_transformer: True
+        transformer_depth: 1
+        context_dim: 768
+        use_checkpoint: True
+        legacy: False
+
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL
+      params:
+        embed_dim: 4
+        monitor: val/rec_loss
+        ddconfig:
+          double_z: true
+          z_channels: 4
+          resolution: 256
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult:
+          - 1
+          - 2
+          - 4
+          - 4
+          num_res_blocks: 2
+          attn_resolutions: []
+          dropout: 0.0
+        lossconfig:
+          target: torch.nn.Identity
+
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
